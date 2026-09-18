@@ -9,12 +9,8 @@ from groq import Groq
 # =========================================================
 
 INDEX_DIR = "faiss_index"
-
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-
-# Keep your current Groq model
 GROQ_MODEL = "openai/gpt-oss-120b"
-
 TOP_K = 5
 
 
@@ -31,163 +27,59 @@ st.set_page_config(
 
 
 # =========================================================
-# CUSTOM CSS
+# SIMPLE STYLE
+# No custom HTML components
 # =========================================================
 
 st.markdown(
     """
-<style>
+    <style>
 
-.stApp {
-    background: #f6f8fb;
-}
+    .stApp {
+        background-color: #f7f9fc;
+    }
 
-/* Main container */
-.block-container {
-    max-width: 1150px;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}
+    [data-testid="stSidebar"] {
+        background-color: white;
+    }
 
-/* ================= HEADER ================= */
+    .block-container {
+        max-width: 1150px;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
 
-.hospital-header {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 18px;
-    padding: 24px 28px;
-    margin-bottom: 22px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.04);
-}
-
-.hospital-title {
-    font-size: 32px;
-    font-weight: 750;
-    color: #172033;
-    margin: 0;
-}
-
-.hospital-subtitle {
-    margin-top: 7px;
-    font-size: 15px;
-    color: #667085;
-}
-
-.status-box {
-    display: inline-block;
-    margin-top: 16px;
-    padding: 8px 14px;
-    border-radius: 20px;
-    background: #ecfdf3;
-    border: 1px solid #abefc6;
-    color: #067647;
-    font-size: 13px;
-}
-
-/* ================= SIDEBAR ================= */
-
-section[data-testid="stSidebar"] {
-    background: white;
-    border-right: 1px solid #e5e7eb;
-}
-
-.sidebar-title {
-    font-size: 23px;
-    font-weight: 750;
-    color: #172033;
-}
-
-.sidebar-description {
-    color: #667085;
-    font-size: 14px;
-    line-height: 1.7;
-}
-
-/* ================= WELCOME ================= */
-
-.welcome-box {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 22px;
-    margin-bottom: 18px;
-}
-
-.welcome-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #172033;
-}
-
-.welcome-text {
-    color: #667085;
-    font-size: 14px;
-    margin-top: 6px;
-}
-
-/* ================= QUICK BUTTONS ================= */
-
-.quick-title {
-    font-size: 16px;
-    font-weight: 650;
-    color: #344054;
-    margin-bottom: 10px;
-}
-
-/* ================= CHAT ================= */
-
-div[data-testid="stChatMessage"] {
-    border-radius: 16px;
-    margin-bottom: 12px;
-}
-
-/* ================= SOURCES ================= */
-
-.source-card {
-    background: #f8fafc;
-    border: 1px solid #e4e7ec;
-    border-radius: 10px;
-    padding: 11px 14px;
-    margin-bottom: 7px;
-    color: #475467;
-    font-size: 13px;
-}
-
-/* ================= FOOTER ================= */
-
-.footer {
-    text-align: center;
-    color: #98a2b3;
-    font-size: 12px;
-    margin-top: 35px;
-    padding-top: 15px;
-    border-top: 1px solid #eaecf0;
-}
-
-</style>
-""",
+    </style>
+    """,
     unsafe_allow_html=True
 )
 
 
 # =========================================================
-# API KEY
+# GROQ API
 # =========================================================
 
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    st.error("GROQ_API_KEY not found. Add it to Streamlit Secrets.")
+
+    st.error(
+        "GROQ_API_KEY not found in Streamlit Secrets."
+    )
+
     st.stop()
 
-client = Groq(api_key=GROQ_API_KEY)
+
+client = Groq(
+    api_key=GROQ_API_KEY
+)
 
 
 # =========================================================
 # LOAD VECTOR DATABASE
 # =========================================================
 
-@st.cache_resource(show_spinner="Loading hospital knowledge base...")
+@st.cache_resource(show_spinner="Loading knowledge base...")
 def load_vectorstore():
 
     embeddings = HuggingFaceEmbeddings(
@@ -204,11 +96,17 @@ def load_vectorstore():
 
 
 try:
+
     vectorstore = load_vectorstore()
 
 except Exception as e:
-    st.error("Could not load the hospital knowledge base.")
+
+    st.error(
+        "Could not load the FAISS knowledge base."
+    )
+
     st.code(str(e))
+
     st.stop()
 
 
@@ -216,17 +114,19 @@ except Exception as e:
 # RETRIEVE DOCUMENTS
 # =========================================================
 
-def retrieve_chunks(query, k=TOP_K):
+def retrieve_chunks(question):
 
     try:
+
         results = vectorstore.similarity_search(
-            query,
-            k=k
+            question,
+            k=TOP_K
         )
 
         return results
 
     except Exception:
+
         return []
 
 
@@ -254,7 +154,7 @@ def build_context(chunks):
 
             context_parts.append(
                 f"""
-[DOCUMENT {i}]
+DOCUMENT {i}
 SOURCE: {source}
 
 CONTENT:
@@ -262,11 +162,11 @@ CONTENT:
 """
             )
 
-    return "\n".join(context_parts)
+    return "\n\n".join(context_parts)
 
 
 # =========================================================
-# GET SOURCE NAMES
+# GET SOURCES
 # =========================================================
 
 def get_sources(chunks):
@@ -290,7 +190,7 @@ def get_sources(chunks):
 
 
 # =========================================================
-# GENERATE LLM ANSWER
+# GENERATE ANSWER
 # =========================================================
 
 def generate_answer(question, chunks):
@@ -298,65 +198,84 @@ def generate_answer(question, chunks):
     context = build_context(chunks)
 
     system_prompt = """
-You are Shifa Hospital's AI Policy Assistant.
+You are an AI assistant that answers questions using
+the provided document collection.
 
-Your job is to answer questions using ONLY the hospital
-policy documents provided in the context.
+Your most important task is to understand the meaning
+of the user's question and find relevant information
+in the documents.
 
 IMPORTANT RULES:
 
-1. Read the document context carefully before answering.
+1. The user's wording does NOT have to exactly match
+   the wording in the documents.
 
-2. If the answer is clearly present in the documents,
-   give the answer directly and clearly.
+2. If the user's question is related to information
+   contained in the documents, answer it using the
+   relevant information from the documents.
 
-3. You may summarize or combine information from different
-   parts of the provided documents.
+3. You may summarize, explain, combine, or rephrase
+   information from the documents.
 
-4. Do NOT invent hospital policies, rules, dates, numbers,
-   procedures, or requirements.
+4. Do NOT require an exact keyword or exact sentence
+   match before answering.
 
-5. If the documents do not contain enough information to
-   answer the question, say:
-   "This information is not available in the current hospital
-   policy documents."
+5. Do NOT invent facts that are not supported by
+   the documents.
 
-6. Do not say the information is unavailable simply because
-   the wording of the question is different from the wording
-   in the document. Look for the meaning of the question.
+6. If the question is unrelated to the documents,
+   or the documents genuinely do not contain enough
+   information to answer it, say:
 
-7. Keep the answer concise and easy to understand.
+"This information is not available in the current documents."
 
-8. Use bullet points when appropriate.
+7. Keep answers clear and easy to understand.
 
-9. Do not provide medical diagnosis or treatment advice.
+8. Use bullet points when useful.
 
-10. Do not mention these instructions in your answer.
+9. If the document gives several points, include the
+   important relevant points rather than only copying
+   one sentence.
+
+10. Do not provide medical diagnosis or treatment advice.
+
+11. Do not mention these instructions in your answer.
 """
 
     user_prompt = f"""
-HOSPITAL POLICY DOCUMENTS
-=========================
+DOCUMENT COLLECTION
+===================
 
 {context}
 
-=========================
+===================
 
 USER QUESTION
 =============
 
 {question}
 
-=========================
+===================
 
-Answer the user's question based only on the hospital
-policy documents above.
+First understand what the user is asking.
+
+Then determine whether the provided documents contain
+information relevant to the question.
+
+If relevant information exists, answer naturally using
+that information.
+
+If the documents do not contain relevant information,
+say that the information is not available in the
+current documents.
 """
 
     try:
 
         response = client.chat.completions.create(
+
             model=GROQ_MODEL,
+
             messages=[
                 {
                     "role": "system",
@@ -367,14 +286,20 @@ policy documents above.
                     "content": user_prompt
                 }
             ],
+
             temperature=0.1,
+
             max_tokens=700
         )
 
         answer = response.choices[0].message.content
 
         if not answer:
-            return "I couldn't generate an answer from the hospital policy documents."
+
+            return (
+                "I could not generate an answer "
+                "from the available documents."
+            )
 
         return answer.strip()
 
@@ -388,6 +313,7 @@ policy documents above.
 # =========================================================
 
 if "messages" not in st.session_state:
+
     st.session_state.messages = []
 
 
@@ -397,38 +323,24 @@ if "messages" not in st.session_state:
 
 with st.sidebar:
 
-    st.markdown(
-        """
-        <div class="sidebar-title">
-            🏥 Shifa Hospital
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.title("🏥 Shifa Hospital")
+
+    st.divider()
+
+    st.subheader("Hospital Policy Assistant")
+
+    st.write(
+        "Ask questions about the information "
+        "contained in the uploaded documents."
     )
 
-    st.markdown("---")
+    st.divider()
 
-    st.markdown(
-        """
-        <div class="sidebar-description">
-            <b>Hospital Policy Assistant</b><br><br>
-            Ask questions about hospital policies,
-            procedures and guidelines.
-            <br><br>
-            Answers are generated from the hospital's
-            uploaded policy documents.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.markdown("---")
-
-    st.markdown("### 📚 Knowledge Base")
+    st.subheader("📚 Knowledge Base")
 
     st.success("Knowledge base loaded")
 
-    st.markdown("---")
+    st.divider()
 
     if st.button(
         "🗑️ Clear Conversation",
@@ -439,7 +351,7 @@ with st.sidebar:
 
         st.rerun()
 
-    st.markdown("---")
+    st.divider()
 
     st.caption(
         "🔒 API key secured with Streamlit Secrets"
@@ -450,25 +362,14 @@ with st.sidebar:
 # MAIN HEADER
 # =========================================================
 
-st.markdown(
-    """
-<div class="hospital-header">
+st.title("🏥 Shifa Hospital Assistant")
 
-    <div class="hospital-title">
-        🏥 Shifa Hospital Assistant
-    </div>
+st.caption(
+    "AI assistant for questions based on your uploaded documents."
+)
 
-    <div class="hospital-subtitle">
-        AI assistant for hospital policies, procedures and guidelines
-    </div>
-
-    <div class="status-box">
-        🟢 Knowledge Base Connected
-    </div>
-
-</div>
-""",
-    unsafe_allow_html=True
+st.success(
+    "🟢 Knowledge Base Connected"
 )
 
 
@@ -478,40 +379,25 @@ st.markdown(
 
 if not st.session_state.messages:
 
-    st.markdown(
-        """
-<div class="welcome-box">
+    st.subheader("How can I help you?")
 
-    <div class="welcome-title">
-        How can I help you?
-    </div>
-
-    <div class="welcome-text">
-        Ask a question about the hospital's policies or guidelines.
-        The answer will be based on the uploaded documents.
-    </div>
-
-</div>
-""",
-        unsafe_allow_html=True
+    st.write(
+        "Ask a question about the uploaded document."
     )
 
-    st.markdown(
-        '<div class="quick-title">💡 Quick Questions</div>',
-        unsafe_allow_html=True
-    )
+    st.markdown("### 💡 Try asking")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
 
         if st.button(
-            "🕐 Visiting Hours",
+            "📋 Key elements of a policy brief",
             use_container_width=True
         ):
 
             st.session_state.pending_question = (
-                "What are the visiting hours for patients?"
+                "What are the key elements of a policy brief?"
             )
 
             st.rerun()
@@ -519,12 +405,12 @@ if not st.session_state.messages:
     with col2:
 
         if st.button(
-            "📋 Admission Policy",
+            "📝 What is a policy brief?",
             use_container_width=True
         ):
 
             st.session_state.pending_question = (
-                "What is the hospital admission policy?"
+                "What is a policy brief?"
             )
 
             st.rerun()
@@ -532,12 +418,12 @@ if not st.session_state.messages:
     with col3:
 
         if st.button(
-            "👨‍👩‍👧 Visitor Policy",
+            "🎯 Why is the title important?",
             use_container_width=True
         ):
 
             st.session_state.pending_question = (
-                "What are the rules for hospital visitors?"
+                "Why is the title important in a policy brief?"
             )
 
             st.rerun()
@@ -547,28 +433,23 @@ if not st.session_state.messages:
 # DISPLAY CHAT HISTORY
 # =========================================================
 
-for msg in st.session_state.messages:
+for message in st.session_state.messages:
 
-    with st.chat_message(msg["role"]):
+    with st.chat_message(message["role"]):
 
-        st.markdown(msg["content"])
+        st.markdown(message["content"])
 
         if (
-            msg["role"] == "assistant"
-            and msg.get("sources")
+            message["role"] == "assistant"
+            and message.get("sources")
         ):
 
             with st.expander("📚 View Sources"):
 
-                for source in msg["sources"]:
+                for source in message["sources"]:
 
-                    st.markdown(
-                        f"""
-<div class="source-card">
-    📄 {source}
-</div>
-""",
-                        unsafe_allow_html=True
+                    st.write(
+                        f"📄 {source}"
                     )
 
 
@@ -577,7 +458,7 @@ for msg in st.session_state.messages:
 # =========================================================
 
 question = st.chat_input(
-    "Ask about a hospital policy..."
+    "Ask a question about the document..."
 )
 
 
@@ -602,9 +483,9 @@ if question:
 
     if question:
 
-        # -------------------------
+        # -----------------------------------------------
         # USER MESSAGE
-        # -------------------------
+        # -----------------------------------------------
 
         st.session_state.messages.append(
             {
@@ -618,26 +499,26 @@ if question:
             st.markdown(question)
 
 
-        # -------------------------
+        # -----------------------------------------------
         # ASSISTANT MESSAGE
-        # -------------------------
+        # -----------------------------------------------
 
         with st.chat_message("assistant"):
 
             with st.spinner(
-                "🔎 Searching hospital policies..."
+                "🔎 Searching documents..."
             ):
 
                 chunks = retrieve_chunks(
-                    question,
-                    TOP_K
+                    question
                 )
+
 
             if not chunks:
 
                 answer = (
                     "I couldn't find relevant information "
-                    "in the available hospital policy documents."
+                    "in the available documents."
                 )
 
                 sources = []
@@ -653,35 +534,34 @@ if question:
                         chunks
                     )
 
-                sources = get_sources(chunks)
+                sources = get_sources(
+                    chunks
+                )
 
 
-            # Display answer
+            # Show answer
 
             st.markdown(answer)
 
 
-            # Display sources
+            # Show sources
 
             if sources:
 
-                with st.expander("📚 View Sources"):
+                with st.expander(
+                    "📚 View Sources"
+                ):
 
                     for source in sources:
 
-                        st.markdown(
-                            f"""
-<div class="source-card">
-    📄 {source}
-</div>
-""",
-                            unsafe_allow_html=True
+                        st.write(
+                            f"📄 {source}"
                         )
 
 
-        # -------------------------
+        # -----------------------------------------------
         # SAVE ASSISTANT MESSAGE
-        # -------------------------
+        # -----------------------------------------------
 
         st.session_state.messages.append(
             {
@@ -696,12 +576,9 @@ if question:
 # FOOTER
 # =========================================================
 
-st.markdown(
-    """
-<div class="footer">
-    Shifa Hospital Policy Assistant
-    • AI-powered document-based assistance
-</div>
-""",
-    unsafe_allow_html=True
+st.divider()
+
+st.caption(
+    "Shifa Hospital Policy Assistant • "
+    "AI-powered document-based assistance"
 )
