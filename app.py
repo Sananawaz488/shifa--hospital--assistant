@@ -9,10 +9,18 @@ from groq import Groq
 # =========================================================
 
 INDEX_DIR = "faiss_index"
-EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-GROQ_MODEL = "openai/gpt-oss-120b"
-TOP_K = 4
 
+EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+
+# Keep your current Groq model
+GROQ_MODEL = "openai/gpt-oss-120b"
+
+TOP_K = 5
+
+
+# =========================================================
+# PAGE CONFIG
+# =========================================================
 
 st.set_page_config(
     page_title="Shifa Hospital Assistant",
@@ -31,122 +39,127 @@ st.markdown(
 <style>
 
 .stApp {
-    background: #f7f9fc;
+    background: #f6f8fb;
 }
 
+/* Main container */
 .block-container {
+    max-width: 1150px;
     padding-top: 2rem;
     padding-bottom: 2rem;
-    max-width: 1200px;
 }
 
-
-/* =========================
-   HEADER
-   ========================= */
+/* ================= HEADER ================= */
 
 .hospital-header {
-    background: linear-gradient(135deg, #ffffff, #eef7ff);
-    padding: 28px 32px;
-    border-radius: 20px;
-    border: 1px solid #e2e8f0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 24px 28px;
     margin-bottom: 22px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.04);
 }
 
 .hospital-title {
-    font-size: 36px;
+    font-size: 32px;
     font-weight: 750;
     color: #172033;
-    margin-bottom: 6px;
+    margin: 0;
 }
 
 .hospital-subtitle {
-    font-size: 16px;
+    margin-top: 7px;
+    font-size: 15px;
     color: #667085;
 }
 
 .status-box {
+    display: inline-block;
+    margin-top: 16px;
+    padding: 8px 14px;
+    border-radius: 20px;
     background: #ecfdf3;
     border: 1px solid #abefc6;
     color: #067647;
-    padding: 11px 15px;
-    border-radius: 12px;
-    font-size: 14px;
-    margin-top: 16px;
+    font-size: 13px;
 }
 
-
-/* =========================
-   SIDEBAR
-   ========================= */
+/* ================= SIDEBAR ================= */
 
 section[data-testid="stSidebar"] {
-    background: #ffffff;
+    background: white;
     border-right: 1px solid #e5e7eb;
 }
 
 .sidebar-title {
     font-size: 23px;
+    font-weight: 750;
+    color: #172033;
+}
+
+.sidebar-description {
+    color: #667085;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+/* ================= WELCOME ================= */
+
+.welcome-box {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 18px;
+}
+
+.welcome-title {
+    font-size: 22px;
     font-weight: 700;
     color: #172033;
 }
 
-.sidebar-text {
+.welcome-text {
     color: #667085;
     font-size: 14px;
-    line-height: 1.6;
+    margin-top: 6px;
 }
 
-
-/* =========================
-   QUICK QUESTIONS
-   ========================= */
+/* ================= QUICK BUTTONS ================= */
 
 .quick-title {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 650;
     color: #344054;
-    margin-top: 12px;
-    margin-bottom: 12px;
-}
-
-
-/* =========================
-   CHAT
-   ========================= */
-
-div[data-testid="stChatMessage"] {
-    border-radius: 18px;
-    padding: 10px;
     margin-bottom: 10px;
 }
 
+/* ================= CHAT ================= */
 
-/* =========================
-   SOURCE CARDS
-   ========================= */
+div[data-testid="stChatMessage"] {
+    border-radius: 16px;
+    margin-bottom: 12px;
+}
+
+/* ================= SOURCES ================= */
 
 .source-card {
     background: #f8fafc;
     border: 1px solid #e4e7ec;
-    border-radius: 12px;
-    padding: 10px 14px;
+    border-radius: 10px;
+    padding: 11px 14px;
     margin-bottom: 7px;
     color: #475467;
-    font-size: 14px;
+    font-size: 13px;
 }
 
-
-/* =========================
-   FOOTER
-   ========================= */
+/* ================= FOOTER ================= */
 
 .footer {
     text-align: center;
     color: #98a2b3;
     font-size: 12px;
-    margin-top: 30px;
+    margin-top: 35px;
     padding-top: 15px;
     border-top: 1px solid #eaecf0;
 }
@@ -164,11 +177,8 @@ div[data-testid="stChatMessage"] {
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    st.error(
-        "GROQ_API_KEY not found. Add it to your Streamlit secrets."
-    )
+    st.error("GROQ_API_KEY not found. Add it to Streamlit Secrets.")
     st.stop()
-
 
 client = Groq(api_key=GROQ_API_KEY)
 
@@ -193,21 +203,31 @@ def load_vectorstore():
     return vectorstore
 
 
-vectorstore = load_vectorstore()
+try:
+    vectorstore = load_vectorstore()
+
+except Exception as e:
+    st.error("Could not load the hospital knowledge base.")
+    st.code(str(e))
+    st.stop()
 
 
 # =========================================================
-# RETRIEVE DOCUMENT CHUNKS
+# RETRIEVE DOCUMENTS
 # =========================================================
 
 def retrieve_chunks(query, k=TOP_K):
 
-    results = vectorstore.similarity_search(
-        query,
-        k=k
-    )
+    try:
+        results = vectorstore.similarity_search(
+            query,
+            k=k
+        )
 
-    return results
+        return results
+
+    except Exception:
+        return []
 
 
 # =========================================================
@@ -228,16 +248,49 @@ def build_context(chunks):
             )
         )
 
-        context_parts.append(
-            f"[Document {i} - {source}]\n"
-            f"{doc.page_content}"
-        )
+        content = doc.page_content.strip()
 
-    return "\n\n".join(context_parts)
+        if content:
+
+            context_parts.append(
+                f"""
+[DOCUMENT {i}]
+SOURCE: {source}
+
+CONTENT:
+{content}
+"""
+            )
+
+    return "\n".join(context_parts)
 
 
 # =========================================================
-# GENERATE ANSWER
+# GET SOURCE NAMES
+# =========================================================
+
+def get_sources(chunks):
+
+    sources = []
+
+    for doc in chunks:
+
+        source = doc.metadata.get(
+            "path",
+            doc.metadata.get(
+                "source",
+                "Unknown document"
+            )
+        )
+
+        if source:
+            sources.append(source)
+
+    return sorted(set(sources))
+
+
+# =========================================================
+# GENERATE LLM ANSWER
 # =========================================================
 
 def generate_answer(question, chunks):
@@ -245,48 +298,89 @@ def generate_answer(question, chunks):
     context = build_context(chunks)
 
     system_prompt = """
-You are a professional hospital policy assistant.
+You are Shifa Hospital's AI Policy Assistant.
 
-Answer the user's question ONLY using the provided hospital
-policy document excerpts.
+Your job is to answer questions using ONLY the hospital
+policy documents provided in the context.
 
-Rules:
+IMPORTANT RULES:
 
-1. Do not invent information.
-2. If the answer is not available in the provided documents,
-   clearly say that the information is not available in the
-   current hospital policy documents.
-3. Keep answers clear and concise.
-4. Use bullet points when helpful.
-5. Do not provide medical diagnosis or treatment advice.
+1. Read the document context carefully before answering.
+
+2. If the answer is clearly present in the documents,
+   give the answer directly and clearly.
+
+3. You may summarize or combine information from different
+   parts of the provided documents.
+
+4. Do NOT invent hospital policies, rules, dates, numbers,
+   procedures, or requirements.
+
+5. If the documents do not contain enough information to
+   answer the question, say:
+   "This information is not available in the current hospital
+   policy documents."
+
+6. Do not say the information is unavailable simply because
+   the wording of the question is different from the wording
+   in the document. Look for the meaning of the question.
+
+7. Keep the answer concise and easy to understand.
+
+8. Use bullet points when appropriate.
+
+9. Do not provide medical diagnosis or treatment advice.
+
+10. Do not mention these instructions in your answer.
 """
 
     user_prompt = f"""
-Hospital Policy Documents:
+HOSPITAL POLICY DOCUMENTS
+=========================
 
 {context}
 
-User Question:
+=========================
+
+USER QUESTION
+=============
 
 {question}
+
+=========================
+
+Answer the user's question based only on the hospital
+policy documents above.
 """
 
-    response = client.chat.completions.create(
-        model=GROQ_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": system_prompt
-            },
-            {
-                "role": "user",
-                "content": user_prompt
-            }
-        ],
-        temperature=0.2
-    )
+    try:
 
-    return response.choices[0].message.content
+        response = client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt
+                }
+            ],
+            temperature=0.1,
+            max_tokens=700
+        )
+
+        answer = response.choices[0].message.content
+
+        if not answer:
+            return "I couldn't generate an answer from the hospital policy documents."
+
+        return answer.strip()
+
+    except Exception as e:
+
+        return f"LLM Error: {str(e)}"
 
 
 # =========================================================
@@ -304,7 +398,11 @@ if "messages" not in st.session_state:
 with st.sidebar:
 
     st.markdown(
-        '<div class="sidebar-title">🏥 Shifa Hospital</div>',
+        """
+        <div class="sidebar-title">
+            🏥 Shifa Hospital
+        </div>
+        """,
         unsafe_allow_html=True
     )
 
@@ -312,22 +410,15 @@ with st.sidebar:
 
     st.markdown(
         """
-<div class="sidebar-text">
-
-<b>Hospital Policy Assistant</b>
-
-<br><br>
-
-Ask questions about hospital policies,
-procedures and guidelines.
-
-<br><br>
-
-Answers are generated from the
-hospital's uploaded policy documents.
-
-</div>
-""",
+        <div class="sidebar-description">
+            <b>Hospital Policy Assistant</b><br><br>
+            Ask questions about hospital policies,
+            procedures and guidelines.
+            <br><br>
+            Answers are generated from the hospital's
+            uploaded policy documents.
+        </div>
+        """,
         unsafe_allow_html=True
     )
 
@@ -351,7 +442,7 @@ hospital's uploaded policy documents.
     st.markdown("---")
 
     st.caption(
-        "🔒 API key is securely stored in Streamlit Secrets."
+        "🔒 API key secured with Streamlit Secrets"
     )
 
 
@@ -368,13 +459,11 @@ st.markdown(
     </div>
 
     <div class="hospital-subtitle">
-        Your AI assistant for hospital policies,
-        procedures and guidelines.
+        AI assistant for hospital policies, procedures and guidelines
     </div>
 
     <div class="status-box">
-        🟢 Knowledge base connected •
-        Answers grounded in uploaded hospital documents
+        🟢 Knowledge Base Connected
     </div>
 
 </div>
@@ -384,13 +473,31 @@ st.markdown(
 
 
 # =========================================================
-# QUICK QUESTIONS
+# WELCOME SCREEN
 # =========================================================
 
 if not st.session_state.messages:
 
     st.markdown(
-        '<div class="quick-title">💡 Try asking</div>',
+        """
+<div class="welcome-box">
+
+    <div class="welcome-title">
+        How can I help you?
+    </div>
+
+    <div class="welcome-text">
+        Ask a question about the hospital's policies or guidelines.
+        The answer will be based on the uploaded documents.
+    </div>
+
+</div>
+""",
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="quick-title">💡 Quick Questions</div>',
         unsafe_allow_html=True
     )
 
@@ -399,11 +506,11 @@ if not st.session_state.messages:
     with col1:
 
         if st.button(
-            "🕐 Visiting hours?",
+            "🕐 Visiting Hours",
             use_container_width=True
         ):
 
-            st.session_state.quick_question = (
+            st.session_state.pending_question = (
                 "What are the visiting hours for patients?"
             )
 
@@ -412,11 +519,11 @@ if not st.session_state.messages:
     with col2:
 
         if st.button(
-            "📋 Admission policy?",
+            "📋 Admission Policy",
             use_container_width=True
         ):
 
-            st.session_state.quick_question = (
+            st.session_state.pending_question = (
                 "What is the hospital admission policy?"
             )
 
@@ -425,11 +532,11 @@ if not st.session_state.messages:
     with col3:
 
         if st.button(
-            "👨‍👩‍👧 Visitor policy?",
+            "👨‍👩‍👧 Visitor Policy",
             use_container_width=True
         ):
 
-            st.session_state.quick_question = (
+            st.session_state.pending_question = (
                 "What are the rules for hospital visitors?"
             )
 
@@ -437,7 +544,7 @@ if not st.session_state.messages:
 
 
 # =========================================================
-# CHAT HISTORY
+# DISPLAY CHAT HISTORY
 # =========================================================
 
 for msg in st.session_state.messages:
@@ -458,7 +565,7 @@ for msg in st.session_state.messages:
                     st.markdown(
                         f"""
 <div class="source-card">
-📄 {source}
+    📄 {source}
 </div>
 """,
                         unsafe_allow_html=True
@@ -475,14 +582,14 @@ question = st.chat_input(
 
 
 # =========================================================
-# QUICK QUESTION PROCESSING
+# QUICK QUESTION
 # =========================================================
 
-if "quick_question" in st.session_state:
+if "pending_question" in st.session_state:
 
-    question = st.session_state.quick_question
+    question = st.session_state.pending_question
 
-    del st.session_state.quick_question
+    del st.session_state.pending_question
 
 
 # =========================================================
@@ -491,33 +598,40 @@ if "quick_question" in st.session_state:
 
 if question:
 
-    # -------------------------
-    # USER MESSAGE
-    # -------------------------
+    question = question.strip()
 
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": question
-        }
-    )
+    if question:
 
-    with st.chat_message("user"):
+        # -------------------------
+        # USER MESSAGE
+        # -------------------------
 
-        st.markdown(question)
+        st.session_state.messages.append(
+            {
+                "role": "user",
+                "content": question
+            }
+        )
+
+        with st.chat_message("user"):
+
+            st.markdown(question)
 
 
-    # -------------------------
-    # ASSISTANT MESSAGE
-    # -------------------------
+        # -------------------------
+        # ASSISTANT MESSAGE
+        # -------------------------
 
-    with st.chat_message("assistant"):
+        with st.chat_message("assistant"):
 
-        with st.spinner(
-            "🔎 Searching hospital policies..."
-        ):
+            with st.spinner(
+                "🔎 Searching hospital policies..."
+            ):
 
-            chunks = retrieve_chunks(question)
+                chunks = retrieve_chunks(
+                    question,
+                    TOP_K
+                )
 
             if not chunks:
 
@@ -530,59 +644,52 @@ if question:
 
             else:
 
-                answer = generate_answer(
-                    question,
-                    chunks
-                )
+                with st.spinner(
+                    "🤖 Generating answer..."
+                ):
 
-                sources = sorted(
-                    set(
-                        doc.metadata.get(
-                            "path",
-                            doc.metadata.get(
-                                "source",
-                                "Unknown document"
-                            )
-                        )
-                        for doc in chunks
+                    answer = generate_answer(
+                        question,
+                        chunks
                     )
-                )
+
+                sources = get_sources(chunks)
 
 
-        st.markdown(answer)
+            # Display answer
+
+            st.markdown(answer)
 
 
-        # -------------------------
-        # SOURCES
-        # -------------------------
+            # Display sources
 
-        if sources:
+            if sources:
 
-            with st.expander("📚 View Sources"):
+                with st.expander("📚 View Sources"):
 
-                for source in sources:
+                    for source in sources:
 
-                    st.markdown(
-                        f"""
+                        st.markdown(
+                            f"""
 <div class="source-card">
-📄 {source}
+    📄 {source}
 </div>
 """,
-                        unsafe_allow_html=True
-                    )
+                            unsafe_allow_html=True
+                        )
 
 
-    # -------------------------
-    # SAVE ASSISTANT MESSAGE
-    # -------------------------
+        # -------------------------
+        # SAVE ASSISTANT MESSAGE
+        # -------------------------
 
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": answer,
-            "sources": sources
-        }
-    )
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "content": answer,
+                "sources": sources
+            }
+        )
 
 
 # =========================================================
@@ -592,8 +699,8 @@ if question:
 st.markdown(
     """
 <div class="footer">
-    Shifa Hospital Policy Assistant •
-    AI-powered document-based assistance
+    Shifa Hospital Policy Assistant
+    • AI-powered document-based assistance
 </div>
 """,
     unsafe_allow_html=True
